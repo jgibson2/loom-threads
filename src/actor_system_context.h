@@ -9,14 +9,10 @@
 #include <unistd.h>
 #include <memory>
 #include <typeindex>
+#include <mutex>
 #include "actor_queue.h"
 #include "actor_base.h"
-#include <boost/fiber/algo/algorithm.hpp>
-#include <boost/fiber/fiber.hpp>
-#include <boost/fiber/mutex.hpp>
-#include <boost/fiber/algo/shared_work.hpp>
-#include <boost/fiber/operations.hpp>
-#include <boost/fiber/condition_variable.hpp>
+
 
 class bad_type_request : public std::logic_error {
 public:

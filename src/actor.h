@@ -12,7 +12,6 @@
 #include "actor_base.h"
 #include "actor_queue.h"
 #include "actor_system_context.h"
-#include <boost/fiber/all.hpp>
 #include <sys/epoll.h>
 
 
