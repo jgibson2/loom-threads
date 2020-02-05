@@ -54,7 +54,3 @@ TEST_CASE("ActorWorks", "[basic]") {
     }
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
 }
-
-TEST_CASE("ActorWorksWithThreads", "[basic]") {
-
-}

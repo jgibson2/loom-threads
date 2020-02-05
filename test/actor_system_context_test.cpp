@@ -38,3 +38,11 @@ TEST_CASE("ActorSystemContextWorksWithHeldReference", "[basic]") {
         REQUIRE(!outerQueue->receive().has_value());
     }
 }
+
+TEST_CASE("ActorSystemContextQueueFailsOnBadType", "[basic]") {
+    auto ctx = std::make_shared<ActorSystemContext>();
+    auto q1 = ctx->getQueue<int>("test");
+    REQUIRE_THROWS(
+             ctx->getQueue<long>("test")
+            );
+}

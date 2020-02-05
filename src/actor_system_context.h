@@ -7,6 +7,8 @@
 
 #include <tuple>
 #include <unistd.h>
+#include <memory>
+#include <typeindex>
 #include "actor_queue.h"
 #include "actor_base.h"
 #include <boost/fiber/algo/algorithm.hpp>
@@ -16,9 +18,30 @@
 #include <boost/fiber/operations.hpp>
 #include <boost/fiber/condition_variable.hpp>
 
+class bad_type : public std::logic_error {
+public:
+    bad_type(const char* t1, const char* t2) : std::logic_error("Bad Type Requested") {
+        _t1_str = t1;
+        _t2_str = t2;
+    }
+
+    virtual const char* what() const noexcept {
+        auto s = std::string("ERROR! Bad Type Requested: Requested Type: ")
+                + _t1_str
+                + std::string(" Actual type: ")
+                + _t2_str;
+        return s.c_str();
+    }
+private:
+    const char* _t1_str;
+    const char* _t2_str;
+};
+
 
 class ActorSystemContext : public std::enable_shared_from_this<ActorSystemContext> {
 public:
+    using QueueAndFDWithTypeInfo = std::tuple<std::shared_ptr<ActorQueueBase>, int, size_t>;
+
     ActorSystemContext() = default;
 
     template<typename ActorTypeT, typename... Args>
@@ -45,12 +68,12 @@ public:
             makeQueue<MessageTypeT, DEFAULTVALUE>(identifier);
         }
         auto queue = _queueMap.at(identifier);
-        auto* ptr = static_cast<ActorQueue<MessageTypeT, DEFAULTVALUE>*>(std::get<0>(queue));
-        return std::shared_ptr<ActorQueue<MessageTypeT, DEFAULTVALUE>>(ptr,
-                [](ActorQueue<MessageTypeT, DEFAULTVALUE>*){
-                    //pass
-                }
-        );
+        if(std::type_index(typeid(MessageTypeT)).hash_code() != std::get<2>(queue)){
+            throw bad_type(std::type_index(typeid(MessageTypeT)).name(), _typeMap.at(std::get<2>(queue)).c_str());
+        }
+        auto qPtr = std::get<0>(queue);
+        auto dPtr = std::dynamic_pointer_cast<ActorQueue<MessageTypeT, DEFAULTVALUE>>(qPtr);
+        return dPtr;
     }
 
     void stop() {
@@ -71,16 +94,18 @@ public:
 
 private:
     std::vector<std::tuple<bool, std::shared_ptr<ActorBase>>> _actors;
-    //TODO: this is a memory leak
-    //since the pointer is void*, destructors for the queue are not called
-    std::unordered_map<std::string, std::tuple<void*, int>> _queueMap;
+    std::unordered_map<std::string, QueueAndFDWithTypeInfo> _queueMap;
+    std::unordered_map<size_t, std::string> _typeMap;
     std::mutex _mut;
 
     template<typename MessageTypeT, MessageTypeT DEFAULTVALUE = MessageTypeT()>
     std::shared_ptr<ActorQueue<MessageTypeT>> makeQueue(const std::string& identifier) {
-        auto* ptr = new ActorQueue<MessageTypeT, DEFAULTVALUE>();
-        _queueMap[identifier] = std::tuple<void*, int>(ptr, ptr->getPollable());
+        auto q = std::make_shared<ActorQueue<MessageTypeT, DEFAULTVALUE>>();
+        _queueMap[identifier] = std::make_tuple(q, q->getPollable(), q->typeIndex.hash_code());
+        _typeMap[q->typeIndex.hash_code()] = q->typeIndex.name();
+        return q;
     }
+
 };
 
 #endif //LOOM_ACTOR_SYSTEM_CONTEXT_H

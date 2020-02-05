@@ -6,17 +6,28 @@
 #define LOOM_ACTOR_QUEUE_H
 
 #include <optional>
-#include "../external/concurrentqueue/concurrentqueue.h"
 #include <vector>
 #include <functional>
 #include <sys/epoll.h>
+#include <iostream>
+#include <typeindex>
+#include "../external/concurrentqueue/concurrentqueue.h"
+
+class ActorQueueBase {
+public:
+    virtual ~ActorQueueBase() = default;
+};
 
 template<typename T, T DEFAULTVALUE = T()>
-class ActorQueue {
+class ActorQueue : public ActorQueueBase {
 public:
+    const std::type_index typeIndex = std::type_index(typeid(T));
+
     ActorQueue() : _queue() {
         _poll_fd = epoll_create1(0);
     }
+
+    ~ActorQueue() override = default;
 
     bool send(T &&message) {
             return _queue.enqueue(message);
