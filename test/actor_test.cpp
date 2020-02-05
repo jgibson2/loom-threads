@@ -21,7 +21,7 @@ class QueueTestActor : public Actor {
 public:
     static const std::string QueueIDString;
     QueueTestActor(std::shared_ptr<ActorSystemContext> ctx, int i) : Actor::Actor(ctx), _i(i) {
-        auto _intQueue = _ctx->getQueue<int>(QueueIDString);
+        _intQueue =_ctx->getQueue<int>(QueueIDString);
         addPollable(_intQueue->getPollable());
     }
 
@@ -29,6 +29,7 @@ public:
 
 private:
     int _i;
+    std::shared_ptr<ActorQueue<int>> _intQueue;
 
     void process() final {
         auto _intQueue = _ctx->getQueue<int>(QueueIDString);

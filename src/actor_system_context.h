@@ -18,9 +18,9 @@
 #include <boost/fiber/operations.hpp>
 #include <boost/fiber/condition_variable.hpp>
 
-class bad_type : public std::logic_error {
+class bad_type_request : public std::logic_error {
 public:
-    bad_type(const char* t1, const char* t2) : std::logic_error("Bad Type Requested") {
+    bad_type_request(const char* t1, const char* t2) : std::logic_error("Bad Type Requested") {
         _t1_str = t1;
         _t2_str = t2;
     }
@@ -69,7 +69,7 @@ public:
         }
         auto queue = _queueMap.at(identifier);
         if(std::type_index(typeid(MessageTypeT)).hash_code() != std::get<2>(queue)){
-            throw bad_type(std::type_index(typeid(MessageTypeT)).name(), _typeMap.at(std::get<2>(queue)).c_str());
+            throw bad_type_request(std::type_index(typeid(MessageTypeT)).name(), _typeMap.at(std::get<2>(queue)).c_str());
         }
         auto qPtr = std::get<0>(queue);
         auto dPtr = std::dynamic_pointer_cast<ActorQueue<MessageTypeT, DEFAULTVALUE>>(qPtr);
@@ -93,6 +93,7 @@ public:
     }
 
 private:
+    //TODO: make queue map concurrent
     std::vector<std::tuple<bool, std::shared_ptr<ActorBase>>> _actors;
     std::unordered_map<std::string, QueueAndFDWithTypeInfo> _queueMap;
     std::unordered_map<size_t, std::string> _typeMap;
