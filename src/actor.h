@@ -74,10 +74,7 @@ private:
     virtual void process() = 0;
 
     void threadFn() {
-        //TODO: polling
         while (!_isShutdown.load()) {
-            //TODO: how to notify on shutdown? Close FD, which means keeping track of it in the context
-            //because of the type erasure
             epoll_wait(_poll_fd, &_events[0], _events.size(), -1); //wait for activity
             process();
             std::this_thread::sleep_for(std::chrono::milliseconds(1));

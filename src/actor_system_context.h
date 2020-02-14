@@ -10,6 +10,7 @@
 #include <memory>
 #include <typeindex>
 #include <mutex>
+#include <shared_mutex>
 #include "actor_queue.h"
 #include "actor_base.h"
 
@@ -42,7 +43,7 @@ public:
 
     template<typename ActorTypeT, typename... Args>
     std::shared_ptr<ActorTypeT> makeActor(bool flush, const Args&... args) {
-        std::unique_lock<std::mutex> lock(_mut);
+        std::lock_guard<std::mutex> writeLock(_vectorMut);
         auto ptr = std::make_shared<ActorTypeT>(shared_from_this(), args...);
         _actors.emplace_back(std::make_pair(flush, std::shared_ptr<ActorBase>(ptr)));
         ptr->run();
@@ -51,7 +52,7 @@ public:
 
     template<typename ActorTypeT>
     std::shared_ptr<ActorTypeT> makeActor(bool flush = true) {
-        std::unique_lock<std::mutex> lock(_mut);
+        std::lock_guard<std::mutex> writeLock(_vectorMut);
         auto ptr = std::make_shared<ActorTypeT>(shared_from_this());
         _actors.emplace_back(std::make_pair(flush, std::shared_ptr<ActorBase>(ptr)));
         ptr->run();
@@ -60,21 +61,23 @@ public:
 
     template<typename MessageTypeT, MessageTypeT DEFAULTVALUE = MessageTypeT()>
     std::shared_ptr<ActorQueue<MessageTypeT>> getQueue(const std::string& identifier) {
+        std::shared_lock<std::shared_mutex> readLock(_mapMut);
         if(_queueMap.find(identifier) == _queueMap.end()){
+            readLock.unlock();
             makeQueue<MessageTypeT, DEFAULTVALUE>(identifier);
+            readLock.lock();
         }
-        auto queue = _queueMap.at(identifier);
+        auto& queue = _queueMap.at(identifier);
+        auto qPtr = std::get<0>(queue);
         if(std::type_index(typeid(MessageTypeT)).hash_code() != std::get<2>(queue)){
             throw bad_type_request(std::type_index(typeid(MessageTypeT)).name(), _typeMap.at(std::get<2>(queue)).c_str());
         }
-        auto qPtr = std::get<0>(queue);
         auto dPtr = std::dynamic_pointer_cast<ActorQueue<MessageTypeT, DEFAULTVALUE>>(qPtr);
         return dPtr;
     }
 
     void stop() {
-        std::unique_lock<std::mutex> lock(_mut);
-
+        std::lock_guard<std::shared_mutex> writeLock(_mapMut);
         for(auto& queue : _queueMap) {
             close(std::get<1>(queue.second)); //close fd associated with queue
         }
@@ -93,10 +96,12 @@ private:
     std::vector<std::tuple<bool, std::shared_ptr<ActorBase>>> _actors;
     std::unordered_map<std::string, QueueAndFDWithTypeInfo> _queueMap;
     std::unordered_map<size_t, std::string> _typeMap;
-    std::mutex _mut;
+    std::shared_mutex _mapMut;
+    std::mutex _vectorMut;
 
     template<typename MessageTypeT, MessageTypeT DEFAULTVALUE = MessageTypeT()>
     std::shared_ptr<ActorQueue<MessageTypeT>> makeQueue(const std::string& identifier) {
+        std::lock_guard<std::shared_mutex> writeLock(_mapMut);
         auto q = std::make_shared<ActorQueue<MessageTypeT, DEFAULTVALUE>>();
         _queueMap[identifier] = std::make_tuple(q, q->getPollable(), q->typeIndex.hash_code());
         _typeMap[q->typeIndex.hash_code()] = q->typeIndex.name();

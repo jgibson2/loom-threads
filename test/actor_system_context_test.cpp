@@ -2,6 +2,7 @@
 // Created by john on 8/19/19.
 //
 
+#include <sstream>
 #include "../external/catch.hpp"
 #include "../src/actor_system_context.h"
 
@@ -45,4 +46,61 @@ TEST_CASE("ActorSystemContextQueueFailsOnBadType", "[basic]") {
     REQUIRE_THROWS(
              ctx->getQueue<long>("test")
             );
+}
+
+
+TEST_CASE("ActorSystemQueuesWorkWithMultipleThreads", "[basic]") {
+    auto ctx = std::make_shared<ActorSystemContext>();
+    std::vector<std::thread> threads;
+    for(int i = 0; i < 16; ++i) {
+        threads.emplace_back([&]{
+//            auto id = std::this_thread::get_id();
+            auto id = "Test";
+            std::stringstream ss;
+            ss << id;
+            std::string str = ss.str();
+            auto queue = ctx->getQueue<int>(str);
+            for(int j = 0; j < 1000; ++j) {
+                queue->send(j);
+            }
+            for(int j = 0; j < 1000; ++j) {
+                auto t = queue->receive();
+                if(!t.has_value()){
+                    exit(8);
+                }
+            }
+        });
+    }
+
+    for(auto& t : threads) {
+        t.join();
+    }
+}
+
+TEST_CASE("ActorSystemContextWorksWithMultipleThreads", "[basic]") {
+    auto ctx = std::make_shared<ActorSystemContext>();
+    std::vector<std::thread> threads;
+    for(int i = 0; i < 16; ++i) {
+        threads.emplace_back([&]{
+            auto id = std::this_thread::get_id();
+            std::stringstream ss;
+            ss << id;
+            std::string str = ss.str();
+            auto queue = ctx->getQueue<int>(str);
+            for(int j = 0; j < 1000; ++j) {
+                queue->send(j);
+            }
+            for(int j = 0; j < 1000; ++j) {
+                auto t = queue->receive();
+                //can't usse REQUIRE here since Catch does NOT like multiple threads calling it at once
+                if(!t.has_value()){
+                    exit(8);
+                }
+            }
+        });
+    }
+
+    for(auto& t : threads) {
+        t.join();
+    }
 }
