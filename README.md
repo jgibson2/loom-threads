@@ -1,11 +1,11 @@
 `loom` is a very easy-to-use actor framework for C++. Note that `loom` is still under development, with the following 
 features yet to be implemented:
 
-* Parallelizing `ActorSystemContext` data structures for concurrent access to the queue map (though the queues themselves are concurrent)
+* ~Parallelizing `ActorSystemContext` data structures for concurrent access to the queue map (though the queues themselves are concurrent)~
 
 * Adding publisher-subscriber, request-reply, and dealer patterns to the concurrent queues
 
-* Return an iterator of objects to process instead of just one
+* ~Return an iterator of objects to process instead of just one~
 
 To get started, create an `Actor`:
 
@@ -60,3 +60,5 @@ actors must implement the `process(void)` function, which will be called on the 
 
 * Queues are accessed using the context by a unique identifying string (`"my_queue"`) and must be parametrized with the type. If the 
 incorrect type is given, an exception will be thrown.
+
+* Queues can be bulk-dequeued into a vector to operate on many elements after one receive call.

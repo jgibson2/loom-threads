@@ -92,7 +92,6 @@ public:
     }
 
 private:
-    //TODO: make queue map concurrent
     std::vector<std::tuple<bool, std::shared_ptr<ActorBase>>> _actors;
     std::unordered_map<std::string, QueueAndFDWithTypeInfo> _queueMap;
     std::unordered_map<size_t, std::string> _typeMap;

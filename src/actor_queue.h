@@ -45,6 +45,16 @@ public:
         return std::nullopt;
     }
 
+    std::vector<T>& bulkReceive(size_t max_size = 1024) {
+        thread_local std::vector<T> _receive_vec; //reuse mem
+        auto numElems = std::min(_queue.size_approx(), max_size); //max limit of elements to receive
+        _receive_vec.reserve(numElems); //reserve at least that much mem
+        _receive_vec.clear();
+        numElems = _queue.try_dequeue_bulk(_receive_vec.begin(), numElems); //true number of elements received
+        _receive_vec.resize(numElems); //resize to correct size
+        return _receive_vec;
+    }
+
     int getPollable() {
         return _poll_fd;
     }
